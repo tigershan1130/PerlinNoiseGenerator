@@ -1,0 +1,75 @@
+﻿// Copyright 2019 Tiger Shan All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+
+
+
+//VERTEX SHADER
+
+void MainVertexShader(
+	float4 InPosition : ATTRIBUTE0,
+	float2 InUV : ATTRIBUTE1,
+	out float2 OutUV : TEXCOORD0,
+	out float4 OutPosition : SV_POSITION
+	)
+{
+	OutPosition = InPosition;
+	OutUV = InUV;
+}
+
+
+float Interval;
+float Size;
+float Amplitude;
+
+// 如果需要完全随机图案， 我们必须生成一个随机数大小贴图， 用其贴图传入此Shader 去做随机
+// 现在随机出来比较正正方方...
+float2 Random2D(float2 uv) {
+    float noiseX = (frac(cos(dot(uv, float2(12.9898,78.233) * 2.0)) * 43758.5453));  
+    float noiseY = sqrt(1 - noiseX * noiseX);
+    return float2(noiseX, noiseY);
+}
+
+
+float fade(float t) {
+  return t*t*t*(t*(t*6.0 - 15.0) + 10.0);
+}
+
+float noise(float2 p)
+{
+	float2 p0 = floor(p);
+	float2 p1 = p0 + float2(1.0, 0.0);
+	float2 p2 = p0 + float2(0.0, 1.0);
+	float2 p3 = p0 + float2(1.0, 1.0);
+
+	float2 g0 = Random2D(p0/Size);
+	float2 g1 = Random2D(p1/Size);
+	float2 g2 = Random2D(p2/Size);
+	float2 g3 = Random2D(p3/Size);
+
+	float t0 = p.x - p0.x;
+	float fade_t0 = fade(t0);
+
+	float t1 = p.y - p0.y;
+	float fade_t1 = fade(t1);
+
+	float p0p1 = (1.0 - fade_t0) * dot(g0, (p - p0)) + fade_t0 * dot(g1, (p - p1));
+	float p2p3 = (1.0 - fade_t0) * dot(g2, (p - p2)) + fade_t0 * dot(g3, (p - p3));
+
+	return (1.0 - fade_t1) * p0p1 + fade_t1 * p2p3;
+}	
+
+
+//PIXEL SHADER
+void MainPixelShader(
+	in float2 uv : TEXCOORD0,
+	out float4 OutColor : SV_Target0
+	)
+{   	
+
+	float n = noise(uv.xy * Interval) * Amplitude + noise(uv.xy * Interval * 0.5)  * Amplitude + noise(uv.xy * Interval * 0.25) * Amplitude;// keep continue going with recursion so we get more depth of fractal effect
+	
+	float3 color = (n,n,n);
+
+    OutColor = float4(color.xyz, 1);
+}
